@@ -109,6 +109,62 @@ const Game = () => {
             
             const building = createBuilding(
               Math.random() * 10 + 5,  // height
+              Math.random() * 10 + 10, // width
+              Math.random() * 10 + 10  // depth
+            );
+            building.position.set(x, 0, z);
+            scene.add(building);
+            
+            // Record this building's position
+            buildingPositions.push({x, z});
+          }
+        } else if (Math.random() > 0.5) {
+          // Check for nearby buildings to avoid overlaps
+          if (!buildingPositions.some(pos => 
+            Math.abs(pos.x - x) < 15 && Math.abs(pos.z - z) < 15)) {
+            
+            const natureGroup = createTreesAndNature(x, 0, z);
+            scene.add(natureGroup);
+          }
+        }
+      }
+    }
+
+    // Add roads
+    const roadGeometry = new THREE.PlaneGeometry(25, 500);
+    const roadMaterial = new THREE.MeshStandardMaterial({ 
+      color: 0x444444,
+      roughness: 0.8
+    });
+    const roadH = new THREE.Mesh(roadGeometry, roadMaterial);
+    roadH.rotation.x = -Math.PI / 2;
+    roadH.position.y = 0.1;
+    scene.add(roadH);
+    
+    const roadV = new THREE.Mesh(roadGeometry, roadMaterial);
+    roadV.rotation.x = -Math.PI / 2;
+    roadV.rotation.z = Math.PI / 2;
+    roadV.position.y = 0.1;
+    scene.add(roadV);
+
+    // Add city grid roads
+    for (let i = -2; i <= 2; i++) {
+      if (i === 0) continue; // Skip center where main roads already exist
+      
+      const horizontalRoad = new THREE.Mesh(roadGeometry, roadMaterial);
+      horizontalRoad.rotation.x = -Math.PI / 2;
+      horizontalRoad.position.set(0, 0.1, i * 100);
+      scene.add(horizontalRoad);
+      
+      const verticalRoad = new THREE.Mesh(roadGeometry, roadMaterial);
+      verticalRoad.rotation.x = -Math.PI / 2;
+      verticalRoad.rotation.z = Math.PI / 2;
+      verticalRoad.position.set(i * 100, 0.1, 0);
+      scene.add(verticalRoad);
+    }
+    
+    // Handle window resize
+    const handleResize = () => {
       if (cameraRef.current && rendererRef.current) {
         cameraRef.current.aspect = window.innerWidth / window.innerHeight;
         cameraRef.current.updateProjectionMatrix();
@@ -138,6 +194,9 @@ const Game = () => {
         case 'KeyD':
           movementRef.current.right = true;
           break;
+        case 'ShiftLeft':
+          movementRef.current.sprint = true;
+          break;
       }
     };
     
@@ -155,6 +214,9 @@ const Game = () => {
         case 'KeyD':
           movementRef.current.right = false;
           break;
+        case 'ShiftLeft':
+          movementRef.current.sprint = false;
+          break;
       }
     };
     
@@ -164,28 +226,53 @@ const Game = () => {
     // Animation loop
     const velocity = new THREE.Vector3();
     const direction = new THREE.Vector3();
+    const clock = new THREE.Clock();
+    let lastFpsUpdate = 0;
+    let frameCount = 0;
     
     const animate = () => {
+      const delta = clock.getDelta();
+      frameCount++;
+      
+      // Update FPS counter every second
+      if (clock.getElapsedTime() - lastFpsUpdate >= 1) {
+        setFps(Math.round(frameCount / (clock.getElapsedTime() - lastFpsUpdate)));
+        lastFpsUpdate = clock.getElapsedTime();
+        frameCount = 0;
+      }
+      
       requestAnimationFrame(animate);
       
-      if (controlsRef.current?.isLocked) {
+      if (controlsRef.current?.isLocked && cameraRef.current) {
         // Update movement
-        const speed = movementRef.current.speed;
+        const baseSpeed = movementRef.current.sprint ? 0.3 : 0.15;
         
         direction.z = Number(movementRef.current.forward) - Number(movementRef.current.backward);
         direction.x = Number(movementRef.current.right) - Number(movementRef.current.left);
         direction.normalize();
         
         if (movementRef.current.forward || movementRef.current.backward) {
-          velocity.z = -direction.z * speed;
+          velocity.z = -direction.z * baseSpeed;
+        } else {
+          velocity.z = 0;
         }
         
         if (movementRef.current.left || movementRef.current.right) {
-          velocity.x = -direction.x * speed;
+          velocity.x = -direction.x * baseSpeed;
+        } else {
+          velocity.x = 0;
         }
         
         controlsRef.current.moveRight(-velocity.x);
         controlsRef.current.moveForward(-velocity.z);
+        
+        // Send position update to network
+        if (networkRef.current?.connected) {
+          networkRef.current.updatePlayerPosition(
+            controlsRef.current.getObject().position,
+            new THREE.Euler(0, cameraRef.current.rotation.y, 0, 'YXZ')
+          );
+        }
       }
       
       renderer.render(scene, camera);
@@ -200,6 +287,9 @@ const Game = () => {
       document.removeEventListener('keydown', onKeyDown);
       document.removeEventListener('keyup', onKeyUp);
       
+      // Disconnect network
+      networkRef.current?.disconnect();
+      
       if (mountRef.current && rendererRef.current) {
         mountRef.current.removeChild(rendererRef.current.domElement);
       }
@@ -212,7 +302,19 @@ const Game = () => {
         <h2 className="text-lg font-bold">VirtuWorld</h2>
         <p>W, A, S, D to move</p>
         <p>Mouse to look around</p>
+        <p>Shift to sprint</p>
+        <p className="text-sm mt-2">FPS: {fps}</p>
       </div>
+      
+      {!controlsRef.current?.isLocked && (
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-center">
+          <div className="bg-black/70 p-6 rounded-lg max-w-sm">
+            <h2 className="text-xl font-bold mb-4">Click to explore the world</h2>
+            <p className="mb-2">Use W, A, S, D keys to move</p>
+            <p>Move your mouse to look around</p>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
