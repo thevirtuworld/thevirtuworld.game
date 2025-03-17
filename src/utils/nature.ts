@@ -1,5 +1,6 @@
 // ...existing code...
 
+
 function createBush(): THREE.Group {
   // ...existing code...
   return bush;
@@ -121,4 +122,59 @@ function createWaterFeature(): THREE.Group {
   }
   
   return waterFeature;
+}
+
+// Add export keyword to ensure createTreesAndNature is exported from this module
+export function createTreesAndNature(x: number, y: number, z: number): THREE.Group {
+  const natureGroup = new THREE.Group();
+  natureGroup.position.set(x, y, z);
+  
+  // Determine what kind of nature area this is
+  const areaType = Math.random();
+  
+  if (areaType < 0.7) {
+    // Tree cluster
+    const treeCount = Math.floor(Math.random() * 5) + 1;
+    
+    for (let i = 0; i < treeCount; i++) {
+      const tree = createTree();
+      tree.position.set(
+        (Math.random() - 0.5) * 15,
+        0,
+        (Math.random() - 0.5) * 15
+      );
+      natureGroup.add(tree);
+    }
+    
+    // Add some bushes around trees
+    const bushCount = Math.floor(Math.random() * 8) + 2;
+    for (let i = 0; i < bushCount; i++) {
+      const bush = createBush();
+      bush.position.set(
+        (Math.random() - 0.5) * 20,
+        0,
+        (Math.random() - 0.5) * 20
+      );
+      natureGroup.add(bush);
+    }
+  } else if (areaType < 0.9) {
+    // Rock formation
+    const rockCount = Math.floor(Math.random() * 7) + 3;
+    
+    for (let i = 0; i < rockCount; i++) {
+      const rock = createRock();
+      rock.position.set(
+        (Math.random() - 0.5) * 10,
+        0,
+        (Math.random() - 0.5) * 10
+      );
+      natureGroup.add(rock);
+    }
+  } else {
+    // Water feature
+    const waterFeature = createWaterFeature();
+    natureGroup.add(waterFeature);
+  }
+  
+  return natureGroup;
 }
