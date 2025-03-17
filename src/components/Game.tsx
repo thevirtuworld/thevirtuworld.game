@@ -1,9 +1,11 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import * as THREE from 'three';
 import { PointerLockControls } from 'three/examples/jsm/controls/PointerLockControls';
 import { createTerrain } from '../utils/terrain';
 import { createBuilding } from '../utils/buildings';
 import { createTreesAndNature } from '../utils/nature';
+import { PlayerManager } from '../utils/players';
+import { NetworkManager } from '../utils/network';
 
 const Game = () => {
   const mountRef = useRef<HTMLDivElement>(null);
@@ -11,6 +13,9 @@ const Game = () => {
   const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
   const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
   const controlsRef = useRef<PointerLockControls | null>(null);
+  const networkRef = useRef<NetworkManager | null>(null);
+  const playerManagerRef = useRef<PlayerManager | null>(null);
+  const [fps, setFps] = useState<number>(0);
   
   // Player movement state
   const movementRef = useRef({
@@ -18,6 +23,7 @@ const Game = () => {
     backward: false,
     left: false,
     right: false,
+    sprint: false,
     speed: 0.15
   });
 
@@ -55,6 +61,25 @@ const Game = () => {
     controlsRef.current = controls;
     scene.add(controls.getObject());
     
+    // Setup player manager and network
+    const playerManager = new PlayerManager(scene);
+    playerManagerRef.current = playerManager;
+    
+    const network = new NetworkManager();
+    networkRef.current = network;
+    
+    // Connect to network when controls are locked
+    controls.addEventListener('lock', () => {
+      if (!networkRef.current?.connected) {
+        networkRef.current?.connect(playerManager);
+      }
+    });
+    
+    // Disconnect from network when controls are unlocked
+    controls.addEventListener('unlock', () => {
+      // Keep connection active, just unlock controls
+    });
+    
     // Lighting
     const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
     scene.add(ambientLight);
@@ -73,42 +98,17 @@ const Game = () => {
     scene.add(terrain);
     
     // Generate a small city
+    const buildingPositions: {x: number, z: number}[] = []; // Keep track to avoid overlaps
+    
     for (let x = -100; x < 100; x += 30) {
       for (let z = -100; z < 100; z += 30) {
         if (Math.random() > 0.7) {
-          const building = createBuilding(
-            Math.random() * 10 + 5,  // height
-            Math.random() * 10 + 10, // width
-            Math.random() * 10 + 10  // depth
-          );
-          building.position.set(x, 0, z);
-          scene.add(building);
-        } else if (Math.random() > 0.5) {
-          const natureGroup = createTreesAndNature(x, 0, z);
-          scene.add(natureGroup);
-        }
-      }
-    }
-
-    // Add roads
-    const roadGeometry = new THREE.PlaneGeometry(25, 500);
-    const roadMaterial = new THREE.MeshStandardMaterial({ 
-      color: 0x444444,
-      roughness: 0.8
-    });
-    const roadH = new THREE.Mesh(roadGeometry, roadMaterial);
-    roadH.rotation.x = -Math.PI / 2;
-    roadH.position.y = 0.1;
-    scene.add(roadH);
-    
-    const roadV = new THREE.Mesh(roadGeometry, roadMaterial);
-    roadV.rotation.x = -Math.PI / 2;
-    roadV.rotation.z = Math.PI / 2;
-    roadV.position.y = 0.1;
-    scene.add(roadV);
-    
-    // Handle window resize
-    const handleResize = () => {
+          // Check for nearby buildings to avoid overlaps
+          if (!buildingPositions.some(pos => 
+            Math.abs(pos.x - x) < 25 && Math.abs(pos.z - z) < 25)) {
+            
+            const building = createBuilding(
+              Math.random() * 10 + 5,  // height
       if (cameraRef.current && rendererRef.current) {
         cameraRef.current.aspect = window.innerWidth / window.innerHeight;
         cameraRef.current.updateProjectionMatrix();
