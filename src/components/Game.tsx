@@ -6,6 +6,9 @@ import { createBuilding } from '../utils/buildings';
 import { createTreesAndNature } from '../utils/nature';
 import { PlayerManager } from '../utils/players';
 import { NetworkManager } from '../utils/network';
+import GameUI from './UI/GameUI';
+import { createProceduralSkybox, createSunAndMoon, animateSky } from '../utils/skybox';
+import { WeatherSystem, WeatherType } from '../utils/weather';
 
 const Game = () => {
   const mountRef = useRef<HTMLDivElement>(null);
@@ -15,7 +18,11 @@ const Game = () => {
   const controlsRef = useRef<PointerLockControls | null>(null);
   const networkRef = useRef<NetworkManager | null>(null);
   const playerManagerRef = useRef<PlayerManager | null>(null);
+  const skyRef = useRef<THREE.Group | null>(null);
+  const weatherSystemRef = useRef<WeatherSystem | null>(null);
   const [fps, setFps] = useState<number>(0);
+  const [isLocked, setIsLocked] = useState(false);
+  const [currentWeather, setCurrentWeather] = useState("Clear");
   
   // Player movement state
   const movementRef = useRef({
@@ -37,6 +44,15 @@ const Game = () => {
     
     // Add fog for depth perception
     scene.fog = new THREE.FogExp2(0x87ceeb, 0.002);
+    
+    // Add skybox
+    const skybox = createProceduralSkybox();
+    scene.add(skybox);
+    
+    // Add sun and moon
+    const celestialBodies = createSunAndMoon();
+    scene.add(celestialBodies);
+    skyRef.current = celestialBodies;
     
     // Setup camera
     const camera = new THREE.PerspectiveCamera(
@@ -70,6 +86,7 @@ const Game = () => {
     
     // Connect to network when controls are locked
     controls.addEventListener('lock', () => {
+      setIsLocked(true);
       if (!networkRef.current?.connected) {
         networkRef.current?.connect(playerManager);
       }
@@ -77,7 +94,7 @@ const Game = () => {
     
     // Disconnect from network when controls are unlocked
     controls.addEventListener('unlock', () => {
-      // Keep connection active, just unlock controls
+      setIsLocked(false);
     });
     
     // Lighting
@@ -163,6 +180,11 @@ const Game = () => {
       scene.add(verticalRoad);
     }
     
+    // Initialize weather system
+    const weatherSystem = new WeatherSystem(scene, camera);
+    weatherSystemRef.current = weatherSystem;
+    weatherSystem.setWeather(WeatherType.CLEAR);
+    
     // Handle window resize
     const handleResize = () => {
       if (cameraRef.current && rendererRef.current) {
@@ -196,6 +218,13 @@ const Game = () => {
           break;
         case 'ShiftLeft':
           movementRef.current.sprint = true;
+          break;
+        // Add weather cycle on 'P' key press
+        case 'KeyP':
+          if (weatherSystemRef.current) {
+            const weatherName = weatherSystemRef.current.cycleWeather();
+            setCurrentWeather(weatherName);
+          }
           break;
       }
     };
@@ -232,6 +261,7 @@ const Game = () => {
     
     const animate = () => {
       const delta = clock.getDelta();
+      const elapsedTime = clock.getElapsedTime();
       frameCount++;
       
       // Update FPS counter every second
@@ -239,6 +269,16 @@ const Game = () => {
         setFps(Math.round(frameCount / (clock.getElapsedTime() - lastFpsUpdate)));
         lastFpsUpdate = clock.getElapsedTime();
         frameCount = 0;
+      }
+      
+      // Update sky animation
+      if (skyRef.current) {
+        animateSky(skyRef.current, elapsedTime);
+      }
+      
+      // Update weather effects
+      if (weatherSystemRef.current) {
+        weatherSystemRef.current.update(delta);
       }
       
       requestAnimationFrame(animate);
@@ -279,43 +319,36 @@ const Game = () => {
     };
     
     animate();
-    
-    // Cleanup
-    return () => {
-      window.removeEventListener('resize', handleResize);
-      document.removeEventListener('click', onClick);
-      document.removeEventListener('keydown', onKeyDown);
-      document.removeEventListener('keyup', onKeyUp);
-      
-      // Disconnect network
-      networkRef.current?.disconnect();
-      
-      if (mountRef.current && rendererRef.current) {
-        mountRef.current.removeChild(rendererRef.current.domElement);
-      }
-    };
-  }, []);
 
-  return (
-    <div className="w-full h-full" ref={mountRef}>
-      <div className="absolute top-5 left-5 bg-black/50 p-3 rounded text-white">
-        <h2 className="text-lg font-bold">VirtuWorld</h2>
-        <p>W, A, S, D to move</p>
-        <p>Mouse to look around</p>
-        <p>Shift to sprint</p>
-        <p className="text-sm mt-2">FPS: {fps}</p>
-      </div>
-      
-      {!controlsRef.current?.isLocked && (
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-center">
-          <div className="bg-black/70 p-6 rounded-lg max-w-sm">
-            <h2 className="text-xl font-bold mb-4">Click to explore the world</h2>
-            <p className="mb-2">Use W, A, S, D keys to move</p>
-            <p>Move your mouse to look around</p>
-          </div>
-        </div>
-      )}
-    </div>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+export default Game;};  );    </div>      />        weather={currentWeather}        isLocked={isLocked}         fps={fps}       <GameUI     <div className="w-full h-full" ref={mountRef}>  return (  }, []);    };      }        mountRef.current.removeChild(rendererRef.current.domElement);      if (mountRef.current && rendererRef.current) {            networkRef.current?.disconnect();      // Disconnect network            document.removeEventListener('keyup', onKeyUp);      document.removeEventListener('keydown', onKeyDown);      document.removeEventListener('click', onClick);      window.removeEventListener('resize', handleResize);    return () => {    // Cleanup        </div>
   );
 };
 
