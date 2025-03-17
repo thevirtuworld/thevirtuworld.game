@@ -1,9 +1,9 @@
 import * as THREE from 'three';
-import SimplexNoise from 'simplex-noise';
+import { createNoise2D } from 'simplex-noise';
 
 // Generate procedural terrain using Simplex noise
 export function createTerrain() {
-  const simplex = new SimplexNoise();
+  const noise2D = createNoise2D();
   
   // Create a large ground plane
   const geometry = new THREE.PlaneGeometry(1000, 1000, 128, 128);
@@ -23,9 +23,9 @@ export function createTerrain() {
       const scale2 = 0.05;
       const scale3 = 0.2;
       
-      const noise1 = simplex.noise2D(x * scale1, z * scale1);
-      const noise2 = simplex.noise2D(x * scale2, z * scale2) * 0.5;
-      const noise3 = simplex.noise2D(x * scale3, z * scale3) * 0.25;
+      const noise1 = noise2D(x * scale1, z * scale1);
+      const noise2 = noise2D(x * scale2, z * scale2) * 0.5;
+      const noise3 = noise2D(x * scale3, z * scale3) * 0.25;
       
       const combinedNoise = noise1 + noise2 + noise3;
       
