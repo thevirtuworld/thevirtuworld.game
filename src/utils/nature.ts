@@ -1,9 +1,124 @@
 import * as THREE from 'three';
 
-// ...existing code...
+// Create a procedural tree using basic Three.js geometries
+function createTree(): THREE.Group {
+  const tree = new THREE.Group();
+  
+  // Create the trunk
+  const trunkHeight = Math.random() * 2 + 3; // 3-5 units tall
+  const trunkRadius = Math.random() * 0.2 + 0.2; // 0.2-0.4 units radius
+  const trunkGeometry = new THREE.CylinderGeometry(
+    trunkRadius * 0.7, // top radius slightly smaller than bottom
+    trunkRadius,       // bottom radius
+    trunkHeight,
+    8                  // segments
+  );
+  const trunkMaterial = new THREE.MeshStandardMaterial({
+    color: 0x8B4513,   // Brown color for trunk
+    roughness: 0.9,
+    metalness: 0.1,
+  });
+  const trunk = new THREE.Mesh(trunkGeometry, trunkMaterial);
+  trunk.position.y = trunkHeight / 2;
+  trunk.castShadow = true;
+  trunk.receiveShadow = true;
+  tree.add(trunk);
+  
+  // Create the foliage
+  const foliageSize = Math.random() * 1.5 + 2; // 2-3.5 units
+  const foliageHeight = trunkHeight - 0.5;
+  const foliageGeometry = new THREE.ConeGeometry(
+    foliageSize,
+    foliageSize * 1.5,
+    8
+  );
+  
+  // Randomly choose between different green colors for foliage
+  const colors = [
+    0x2E8B57, // sea green
+    0x228B22, // forest green
+    0x006400, // dark green
+    0x556B2F  // olive green
+  ];
+  const foliageColor = colors[Math.floor(Math.random() * colors.length)];
+  
+  const foliageMaterial = new THREE.MeshStandardMaterial({
+    color: foliageColor,
+    roughness: 0.8,
+    metalness: 0.1
+  });
+  
+  const foliage = new THREE.Mesh(foliageGeometry, foliageMaterial);
+  foliage.position.y = foliageHeight + foliageSize * 0.7;
+  foliage.castShadow = true;
+  foliage.receiveShadow = true;
+  tree.add(foliage);
+  
+  // Sometimes add a second layer of foliage to create a fuller tree
+  if (Math.random() > 0.5) {
+    const foliage2 = new THREE.Mesh(
+      new THREE.ConeGeometry(foliageSize * 0.8, foliageSize * 1.2, 8),
+      foliageMaterial
+    );
+    foliage2.position.y = foliageHeight;
+    foliage2.castShadow = true;
+    foliage2.receiveShadow = true;
+    tree.add(foliage2);
+  }
+  
+  return tree;
+}
 
 function createBush(): THREE.Group {
-  // ...existing code...
+  const bush = new THREE.Group();
+  
+  // Create various sized spheres clustered together to form a bush
+  const bushSize = Math.random() * 0.5 + 0.6; // 0.6-1.1 units
+  
+  // Randomly choose between different green colors
+  const colors = [
+    0x2E8B57, // sea green
+    0x228B22, // forest green
+    0x006400, // dark green
+    0x556B2F  // olive green
+  ];
+  const bushColor = colors[Math.floor(Math.random() * colors.length)];
+  
+  const bushMaterial = new THREE.MeshStandardMaterial({
+    color: bushColor,
+    roughness: 0.8,
+    metalness: 0.1
+  });
+  
+  // Main bush body
+  const mainGeometry = new THREE.SphereGeometry(bushSize, 8, 6);
+  const mainBush = new THREE.Mesh(mainGeometry, bushMaterial);
+  mainBush.position.y = bushSize;
+  mainBush.castShadow = true;
+  mainBush.receiveShadow = true;
+  bush.add(mainBush);
+  
+  // Add some smaller spheres to create a less uniform look
+  const clusterCount = Math.floor(Math.random() * 4) + 2; // 2-5 clusters
+  for (let i = 0; i < clusterCount; i++) {
+    const clusterSize = bushSize * (Math.random() * 0.4 + 0.3); // 30%-70% of main size
+    const clusterGeometry = new THREE.SphereGeometry(clusterSize, 8, 6);
+    const cluster = new THREE.Mesh(clusterGeometry, bushMaterial);
+    
+    // Position cluster slightly offset from center and adjust height
+    const angle = Math.random() * Math.PI * 2;
+    const distance = Math.random() * bushSize * 0.5;
+    cluster.position.set(
+      Math.cos(angle) * distance,
+      bushSize + (Math.random() - 0.5) * bushSize * 0.5,
+      Math.sin(angle) * distance
+    );
+    
+    cluster.castShadow = true;
+    cluster.receiveShadow = true;
+    bush.add(cluster);
+  }
+  
   return bush;
 }
 
